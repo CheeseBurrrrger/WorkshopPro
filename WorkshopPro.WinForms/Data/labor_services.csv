@@ -1,0 +1,62 @@
+Id,Name
+1,Manual clutch replacement
+2,Automatic clutch replacement
+3,Valve cover gasket replacement
+4,Head gasket replacement
+5,Timing belt replacement
+6,Drive belt/v-belt replacement
+7,Spark plug replacement
+8,Air filter replacement
+9,Fuel filter replacement
+10,Oil change service
+11,Coolant flush
+12,Transmission fluid change
+13,Power steering fluid change
+14,Brake fluid change
+15,Brake pad replacement (front)
+16,Brake pad replacement (rear)
+17,Brake disc resurfacing (front)
+18,Brake disc resurfacing (rear)
+19,Brake drum replacement
+20,Front shock absorber replacement
+21,Rear shock absorber replacement
+22,Front right wheel bearing replacement
+23,Front left wheel bearing replacement
+24,Rear right wheel bearing replacement
+25,Rear left wheel bearing replacement
+26,Tie rod end replacement
+27,Rack end replacement
+28,Lower arm bushing replacement
+29,Radiator flush
+30,Thermostat replacement
+31,Water pump replacement
+32,AC compressor service
+33,AC refrigerant recharge
+34,AC evaporator cleaning
+35,AC condenser cleaning
+36,Alternator replacement
+37,Starter motor replacement
+38,Battery replacement
+39,Injector cleaning
+40,Throttle body cleaning
+41,Tune-up service
+42,Service ECU/PCM/ECM
+43,Service ABS system
+44,Service airbag system
+45,Service Speedometer/odometer
+46,Service power windows
+47,Service power locks,
+48,Service TCM
+49,Service BCM
+50,Service SRS system
+51,Block Machining
+52,Crankshaft Machining
+53,Cylinder head machining
+54,Flywheel machining
+55,Bore and hone
+56,Valve job/skir klep
+57,Reseal oil pan
+58,Service power steering pump
+59,Repair steering rack
+60,Service AC Compressor
+61,Service Electrical system

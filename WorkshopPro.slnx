@@ -1,0 +1,14 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="WorkshopPro.Application/WorkshopPro.Entities.csproj" Id="85001206-073a-4d50-a4ee-6464ad5b346e" />
+  <Project Path="WorkshopPro.Domain/WorkshopPro.Domain.csproj" Id="81839efd-f1b3-4c1f-a7fd-cfb1523c9749" />
+  <Project Path="WorkshopPro.Infrastructure/WorkshopPro.Infrastructure.csproj" Id="bed7fad0-92d6-44a9-9050-a72f61ceca34">
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
+  <Project Path="WorkshopPro.WinForms/WorkshopPro.WinForms.csproj" Id="ca8d7f11-4159-4be6-8424-47990848c668">
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
+</Solution>
