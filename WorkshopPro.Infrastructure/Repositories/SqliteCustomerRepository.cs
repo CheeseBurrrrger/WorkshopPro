@@ -55,7 +55,7 @@ namespace WorkshopPro.Infrastructure.Repositories
         {
             using (var conn = OpenConnection())
             {
-                var existing = conn.QuerySingleOrDefault<CustomerEntity>(
+                var existing = conn.QueryFirstOrDefault<CustomerEntity>(
                     "SELECT * FROM Customer WHERE Name = @name COLLATE NOCASE",
                     new { name });
 

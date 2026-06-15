@@ -5,12 +5,18 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using WorkshopPro.Application;
 
 namespace WorkshopPro.Infrastructure
 {
     public class InvoicePdfGenerator
     {
+        private const string WORKSHOP_NAME = "ED Motor Auto Service";
+        private const string WORKSHOP_ADDRESS = "Jl. Raya Danau Kerinci E1C/17\nkota Malang";
+        private const string WORKSHOP_EMAIL = "edmotorautoservice@gmail.com";
+        private const string FOOTER_NOTE = "*Garansi atas perjanjian kedua belah pihak";
+
         private readonly string _outputFolder;
 
         public InvoicePdfGenerator(string outputFolder)
@@ -24,130 +30,219 @@ namespace WorkshopPro.Infrastructure
             InvoiceEntity invoice,
             VehicleEntity vehicle,
             CustomerEntity customer,
-            string workshopName = "WorkshopPro Auto Service")
+            string modelDisplayName = null)
         {
             var document = new PdfDocument();
             document.Info.Title = invoice.InvoiceNo;
-            document.Info.Author = workshopName;
+            document.Info.Author = WORKSHOP_NAME;
 
             var page = document.AddPage();
             page.Size = PdfSharp.PageSize.A4;
             var gfx = XGraphics.FromPdfPage(page);
 
-            // ── Fonts ──────────────────────────────────────────────────────
-            var fontTitle = new XFont("Arial", 20, XFontStyleEx.Bold);
-            var fontHeading = new XFont("Arial", 11, XFontStyleEx.Bold);
-            var fontNormal = new XFont("Arial", 10, XFontStyleEx.Regular);
-            var fontSmall = new XFont("Arial", 8, XFontStyleEx.Regular);
-            var fontBold = new XFont("Arial", 10, XFontStyleEx.Bold);
+            // ── Fonts ──────────────────────────────────────────────────────────
+            var fntHuge = new XFont("Arial", 28, XFontStyleEx.Bold);
+            var fntTitle = new XFont("Arial", 14, XFontStyleEx.Bold);
+            var fntBold = new XFont("Arial", 10, XFontStyleEx.Bold);
+            var fntNormal = new XFont("Arial", 10, XFontStyleEx.Regular);
+            var fntSmall = new XFont("Arial", 8, XFontStyleEx.Regular);
+            var fntSmallB = new XFont("Arial", 8, XFontStyleEx.Bold);
+            var fntSection = new XFont("Arial", 11, XFontStyleEx.Bold);
 
-            // ── Colors ─────────────────────────────────────────────────────
-            var colorPrimary = XColor.FromArgb(33, 97, 140);
-            var colorLight = XColor.FromArgb(214, 234, 248);
-            var colorBlack = XColors.Black;
-            var colorGray = XColor.FromArgb(120, 120, 120);
+            // ── Colors ─────────────────────────────────────────────────────────
+            var cBlack = XColors.Black;
+            var cGray = XColor.FromArgb(100, 100, 100);
+            var cLGray = XColor.FromArgb(220, 220, 220);
+            var cDark = XColor.FromArgb(30, 30, 30);
 
             double pageW = page.Width.Point;
-            double margin = 50;
+            double pageH = page.Height.Point;
+            double margin = 45;
             double y = margin;
 
-            // ── Header bar ─────────────────────────────────────────────────
-            gfx.DrawRectangle(new XSolidBrush(colorPrimary), new XRect(0, 0, pageW, 70));
-            gfx.DrawString(workshopName, fontTitle, XBrushes.White,
-                new XRect(margin, 0, pageW - margin * 2, 70), XStringFormats.CenterLeft);
-            gfx.DrawString("INVOICE", fontTitle, XBrushes.White,
-                new XRect(0, 0, pageW - margin, 70), XStringFormats.CenterRight);
+            // ── helpers ────────────────────────────────────────────────────────
+            void HRule(double yy, double thick = 0.5)
+            {
+                gfx.DrawLine(new XPen(cLGray, thick), margin, yy, pageW - margin, yy);
+            }
 
-            y = 90;
+            void Cell(string text, XFont font, XBrush brush,
+                      double x, double yy, double w = 200,
+                      XStringFormat fmt = null)
+            {
+                gfx.DrawString(text ?? "", font, brush,
+                    new XRect(x, yy, w, 14),
+                    fmt ?? XStringFormats.CenterLeft);
+            }
 
-            // ── Invoice meta (right) ────────────────────────────────────────
-            double col2 = pageW / 2 + 20;
+            // ══════════════════════════════════════════════════════════════════
+            // SECTION 1 — Title + Date
+            // ══════════════════════════════════════════════════════════════════
+            gfx.DrawString("Invoice", fntHuge, new XSolidBrush(cDark), margin, y + 4);
 
-            // FIX: ServiceDate is now a string ("2024-01-15"), not a DateTime.
-            // Parse it to DateTime only for display formatting, with a safe fallback.
-            string serviceDateDisplay = invoice.ServiceDate ?? "";
-            if (DateTime.TryParse(invoice.ServiceDate, out DateTime parsedDate))
-                serviceDateDisplay = parsedDate.ToString("dd MMM yyyy");
+            // Workshop name top-right (in lieu of logo)
+            gfx.DrawString(WORKSHOP_NAME, fntTitle, new XSolidBrush(cDark),
+                new XRect(0, y, pageW - margin, 22), XStringFormats.TopRight);
+            gfx.DrawString("Auto Workshop", fntSmall, new XSolidBrush(cGray),
+                new XRect(0, y + 20, pageW - margin, 14), XStringFormats.TopRight);
 
-            gfx.DrawString("Invoice No :", fontBold, new XSolidBrush(colorBlack), col2, y);
-            gfx.DrawString(invoice.InvoiceNo, fontNormal, new XSolidBrush(colorBlack), col2 + 90, y);
+            y += 34;
+            // Parse ServiceDate — stored as "yyyy-MM-dd" string
+            if (DateTime.TryParse(invoice.ServiceDate, out DateTime svcDate))
+                gfx.DrawString(svcDate.ToString("dd MMMM yyyy"), fntNormal,
+                    new XSolidBrush(cGray), margin, y);
+            else
+                gfx.DrawString(invoice.ServiceDate, fntNormal, new XSolidBrush(cGray), margin, y);
 
-            gfx.DrawString("Date :", fontBold, new XSolidBrush(colorBlack), col2, y + 18);
-            gfx.DrawString(serviceDateDisplay, fontNormal, new XSolidBrush(colorBlack), col2 + 90, y + 18);
+            gfx.DrawString($"Invoice No:  {invoice.InvoiceNo}",
+                fntBold, new XSolidBrush(cDark),
+                new XRect(0, y, pageW - margin, 14), XStringFormats.TopRight);
 
-            gfx.DrawString("Status :", fontBold, new XSolidBrush(colorBlack), col2, y + 36);
-            gfx.DrawString(invoice.Status, fontNormal, new XSolidBrush(colorBlack), col2 + 90, y + 36);
+            y += 22;
+            HRule(y);
+            y += 12;
 
-            // ── Customer info (left) ────────────────────────────────────────
-            gfx.DrawString("Bill To", fontHeading, new XSolidBrush(colorPrimary), margin, y);
-            gfx.DrawString(customer?.Name ?? "-", fontBold, new XSolidBrush(colorBlack), margin, y + 18);
-            gfx.DrawString($"Phone  : {customer?.Phone ?? "-"}", fontNormal, new XSolidBrush(colorGray), margin, y + 34);
-            gfx.DrawString($"Address: {customer?.Address ?? "-"}", fontNormal, new XSolidBrush(colorGray), margin, y + 50);
+            // ══════════════════════════════════════════════════════════════════
+            // SECTION 2 — From / To info block
+            // ══════════════════════════════════════════════════════════════════
+            double col1x = margin;           // left: workshop info
+            double col2x = pageW / 2 + 10;  // right: customer info
+            double labelW = 80;
+            double valueX1 = col1x + labelW + 4;
+            double valueX2 = col2x + labelW + 4;
+            double rowH = 16;
 
-            y += 80;
+            // Left column headers
+            gfx.DrawString("Invoice from", fntBold, new XSolidBrush(cDark), col1x, y);
+            // Right column headers
+            gfx.DrawString("Invoice to", fntBold, new XSolidBrush(cDark), col2x, y);
+            y += rowH;
 
-            // ── Vehicle box ─────────────────────────────────────────────────
-            gfx.DrawRectangle(new XSolidBrush(colorLight), new XRect(margin, y, pageW - margin * 2, 40));
-            gfx.DrawString(
-                $"Vehicle:  {vehicle.PlateNumber}   |   Year: {vehicle.Year}   |   Color: {vehicle.Color}",
-                fontNormal, new XSolidBrush(colorBlack),
-                new XRect(margin + 8, y, pageW - margin * 2 - 8, 40),
-                XStringFormats.CenterLeft);
+            // Workshop info rows
+            string[] workshopLines = WORKSHOP_ADDRESS.Split('\n');
+            gfx.DrawString(WORKSHOP_NAME, fntNormal, new XSolidBrush(cDark), valueX1, y);
+            // Customer name
+            gfx.DrawString(customer?.Name ?? "-", fntNormal, new XSolidBrush(cDark), valueX2, y);
+            y += rowH;
 
-            y += 55;
+            gfx.DrawString("Address", fntBold, new XSolidBrush(cDark), col1x, y);
+            gfx.DrawString(workshopLines.Length > 0 ? workshopLines[0] : "",
+                fntNormal, new XSolidBrush(cGray), valueX1, y);
+            gfx.DrawString("Phone", fntBold, new XSolidBrush(cDark), col2x, y);
+            gfx.DrawString(customer?.Phone ?? "-", fntNormal, new XSolidBrush(cGray), valueX2, y);
+            y += rowH;
 
-            // ── Line items header ───────────────────────────────────────────
-            double[] colX = { margin, margin + 260, margin + 330, margin + 390, margin + 450 };
-            string[] headers = { "Description", "Type", "Qty", "Unit Price", "Subtotal" };
+            if (workshopLines.Length > 1)
+            {
+                gfx.DrawString(workshopLines[1], fntNormal, new XSolidBrush(cGray), valueX1, y);
+            }
+            // Car Brand row
+            gfx.DrawString("Car Brand", fntBold, new XSolidBrush(cDark), col2x, y);
+            gfx.DrawString(vehicle?.modelDisplayName?.Split(' ').FirstOrDefault() ?? "-",
+                fntNormal, new XSolidBrush(cGray), valueX2, y);
+            y += rowH;
 
-            gfx.DrawRectangle(new XSolidBrush(colorPrimary), new XRect(margin, y, pageW - margin * 2, 22));
-            for (int i = 0; i < headers.Length; i++)
-                gfx.DrawString(headers[i], fontBold, XBrushes.White, colX[i] + 4, y + 15);
-            y += 26;
+            gfx.DrawString("Email", fntBold, new XSolidBrush(cDark), col1x, y);
+            gfx.DrawString(WORKSHOP_EMAIL, fntNormal, new XSolidBrush(cGray), valueX1, y);
+            gfx.DrawString("Car Type", fntBold, new XSolidBrush(cDark), col2x, y);
+            gfx.DrawString(modelDisplayName ?? vehicle?.modelDisplayName ?? "-",
+                fntNormal, new XSolidBrush(cGray), valueX2, y);
+            y += rowH;
 
-            // ── Line items rows ─────────────────────────────────────────────
-            bool shadeRow = false;
+            gfx.DrawString("Plate No", fntBold, new XSolidBrush(cDark), col2x, y);
+            gfx.DrawString(vehicle?.PlateNumber ?? "-",
+                fntBold, new XSolidBrush(cDark), valueX2, y);
+            y += rowH + 8;
+
+            HRule(y);
+            y += 14;
+
+            // ══════════════════════════════════════════════════════════════════
+            // SECTION 3 — Work items table
+            // ══════════════════════════════════════════════════════════════════
+            gfx.DrawString("Work", fntSection, new XSolidBrush(cDark), margin, y);
+            y += 18;
+
+            // Column X positions
+            double cItem = margin;
+            double cLabour = margin + 230;
+            double cParts = margin + 340;
+            double cTotal = margin + 430;
+            double tableW = pageW - margin * 2;
+
+            // Table header row
+            HRule(y);
+            y += 4;
+            gfx.DrawString("ITEM", fntSmallB, new XSolidBrush(cDark), cItem, y);
+            gfx.DrawString("LABOUR", fntSmallB, new XSolidBrush(cDark), cLabour, y);
+            gfx.DrawString("PARTS", fntSmallB, new XSolidBrush(cDark), cParts, y);
+            gfx.DrawString("TOTAL", fntSmallB, new XSolidBrush(cDark), cTotal, y);
+            y += 14;
+            HRule(y, 0.8);
+            y += 6;
+
+            // Separate items into labor and parts
+            var laborItems = invoice.Items.Where(i => i.ItemType == "Labor").ToList();
+            var partItems = invoice.Items.Where(i => i.ItemType == "SparePart"
+                                                   || i.ItemType == "ManualPart").ToList();
+
+            decimal totalLabour = 0;
+            decimal totalParts = 0;
+
+            // Draw all rows — labor shows value in LABOUR column, parts in PARTS column
+            // We interleave them in invoice order but track column separately
             foreach (var item in invoice.Items)
             {
-                if (shadeRow)
-                    gfx.DrawRectangle(new XSolidBrush(XColor.FromArgb(240, 240, 240)),
-                        new XRect(margin, y - 4, pageW - margin * 2, 20));
+                bool isLabor = item.ItemType == "Labor";
+                string labourCell = isLabor ? $"Rp{item.Subtotal:N0}" : "-";
+                string partsCell = isLabor ? "-" : $"Rp{item.Subtotal:N0}";
 
-                gfx.DrawString(item.Description, fontNormal, new XSolidBrush(colorBlack), colX[0] + 4, y + 10);
-                gfx.DrawString(item.ItemType, fontNormal, new XSolidBrush(colorBlack), colX[1] + 4, y + 10);
-                gfx.DrawString(item.Qty.ToString(), fontNormal, new XSolidBrush(colorBlack), colX[2] + 4, y + 10);
-                gfx.DrawString($"Rp {item.UnitPrice:N0}", fontNormal, new XSolidBrush(colorBlack), colX[3] + 4, y + 10);
-                gfx.DrawString($"Rp {item.Subtotal:N0}", fontNormal, new XSolidBrush(colorBlack), colX[4] + 4, y + 10);
+                gfx.DrawString(item.Description, fntNormal, new XSolidBrush(cDark),
+                    new XRect(cItem, y, cLabour - cItem - 4, 14), XStringFormats.CenterLeft);
+                gfx.DrawString(labourCell, fntNormal, new XSolidBrush(cDark), cLabour, y);
+                gfx.DrawString(partsCell, fntNormal, new XSolidBrush(cDark), cParts, y);
+                gfx.DrawString($"Rp{item.Subtotal:N0}", fntNormal, new XSolidBrush(cDark), cTotal, y);
 
-                y += 22;
-                shadeRow = !shadeRow;
+                if (isLabor) totalLabour += item.Subtotal;
+                else totalParts += item.Subtotal;
+
+                y += 18;
             }
 
-            // ── Divider + Total ─────────────────────────────────────────────
-            gfx.DrawLine(new XPen(colorPrimary, 1), margin, y + 5, pageW - margin, y + 5);
-            y += 15;
-            gfx.DrawString("TOTAL", fontHeading, new XSolidBrush(colorPrimary), pageW - margin - 180, y + 14);
-            gfx.DrawString($"Rp {invoice.TotalAmount:N0}",
-                new XFont("Arial", 13, XFontStyleEx.Bold),
-                new XSolidBrush(colorPrimary),
-                pageW - margin - 90, y + 14);
-            y += 50;
+            y += 4;
+            HRule(y, 0.8);
+            y += 10;
 
-            // ── Notes ───────────────────────────────────────────────────────
+            // ── Total row ─────────────────────────────────────────────────────
+            gfx.DrawString("Total", fntBold, new XSolidBrush(cDark), cParts, y);
+            gfx.DrawString($"Rp{invoice.TotalAmount:N0}",
+                fntBold, new XSolidBrush(cDark), cTotal, y);
+            y += 20;
+
+            HRule(y);
+            y += 20;
+
+            // ══════════════════════════════════════════════════════════════════
+            // SECTION 4 — Notes box
+            // ══════════════════════════════════════════════════════════════════
+            double notesH = 70;
+            gfx.DrawRectangle(new XPen(cLGray, 0.8),
+                new XRect(margin, y, tableW, notesH));
+            gfx.DrawString("Notes", fntSmallB, new XSolidBrush(cDark), margin + 6, y + 6);
             if (!string.IsNullOrWhiteSpace(invoice.Notes))
-            {
-                gfx.DrawString("Notes:", fontBold, new XSolidBrush(colorGray), margin, y);
-                gfx.DrawString(invoice.Notes, fontNormal, new XSolidBrush(colorGray), margin, y + 16);
-                y += 36;
-            }
+                gfx.DrawString(invoice.Notes, fntNormal, new XSolidBrush(cGray),
+                    new XRect(margin + 6, y + 20, tableW - 12, notesH - 22),
+                    XStringFormats.TopLeft);
+            y += notesH + 16;
 
-            // ── Footer ──────────────────────────────────────────────────────
-            double footerY = page.Height.Point - 40;
-            gfx.DrawLine(new XPen(colorLight, 1), margin, footerY, pageW - margin, footerY);
-            gfx.DrawString("Thank you for your business!", fontSmall, new XSolidBrush(colorGray),
-                new XRect(0, footerY + 8, pageW, 20), XStringFormats.TopCenter);
+            // ══════════════════════════════════════════════════════════════════
+            // SECTION 5 — Footer
+            // ══════════════════════════════════════════════════════════════════
+            double footerY = pageH - 35;
+            HRule(footerY);
+            gfx.DrawString(FOOTER_NOTE, fntSmall, new XSolidBrush(cGray), margin, footerY + 8);
 
-            // ── Save ────────────────────────────────────────────────────────
+            // ── Save ───────────────────────────────────────────────────────────
             string fileName = $"{invoice.InvoiceNo.Replace("-", "_")}.pdf";
             string filePath = Path.Combine(_outputFolder, fileName);
             document.Save(filePath);
@@ -158,5 +253,6 @@ namespace WorkshopPro.Infrastructure
         {
             Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
         }
+
     }
 }

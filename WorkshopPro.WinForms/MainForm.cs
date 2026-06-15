@@ -21,19 +21,18 @@ namespace WorkshopPro.WinForms
         private readonly SqliteManufacturerRepository _manufacturerRepo;
 
         public MainForm(
-           SqliteVehicleRepository vehicleRepo,
-           SqliteVehicleModelRepository vehicleModelRepo,
-           SqliteCustomerRepository customerRepo,
-           SqliteSparePartRepository sparePartRepo,
-           SqliteInvoiceRepository invoiceRepo,
-           InvoiceService invoiceService,
-           InventoryService inventoryService,
-           InvoicePdfGenerator pdfGenerator,
-           SqliteLaborServiceRepository laborServiceRepo,
-           SqliteManufacturerRepository manufacturerRepo)
+            SqliteVehicleRepository vehicleRepo,
+            SqliteVehicleModelRepository vehicleModelRepo,
+            SqliteCustomerRepository customerRepo,
+            SqliteSparePartRepository sparePartRepo,
+            SqliteInvoiceRepository invoiceRepo,
+            InvoiceService invoiceService,
+            InventoryService inventoryService,
+            InvoicePdfGenerator pdfGenerator,
+            SqliteLaborServiceRepository laborServiceRepo,
+            SqliteManufacturerRepository manufacturerRepo)
         {
             InitializeComponent();
-
             _vehicleRepo = vehicleRepo;
             _vehicleModelRepo = vehicleModelRepo;
             _customerRepo = customerRepo;
@@ -44,103 +43,140 @@ namespace WorkshopPro.WinForms
             _pdfGenerator = pdfGenerator;
             _laborRepo = laborServiceRepo;
             _manufacturerRepo = manufacturerRepo;
-
-
             BuildUI();
         }
 
         private void BuildUI()
         {
-            this.Text = "WorkshopPro";
-            this.Size = new Size(400, 300);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.FormBorderStyle = FormBorderStyle.FixedSingle;
-            this.MaximizeBox = false;
+            Text = "WorkshopPro";
+            Size = new Size(420, 380);
+            StartPosition = FormStartPosition.CenterScreen;
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
+            BackColor = Color.FromArgb(245, 245, 248);
 
+            // ── Title ──────────────────────────────────────────────────────────
+            var pnlHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 80,
+                BackColor = Color.FromArgb(30, 30, 60)
+            };
             var lblTitle = new Label
             {
                 Text = "WorkshopPro",
-                Font = new Font("Segoe UI", 18, FontStyle.Bold),
+                Font = new Font("Segoe UI", 20, FontStyle.Bold),
+                ForeColor = Color.White,
                 TextAlign = ContentAlignment.MiddleCenter,
-                Dock = DockStyle.Top,
-                Height = 70
+                Dock = DockStyle.Fill
             };
-
-            var btnNewInvoice = new Button
+            var lblSub = new Label
             {
-                Text = "New Invoice",
-                Size = new Size(200, 50),
-                Location = new Point(90, 100),
-                Font = new Font("Segoe UI", 11)
+                Text = "Auto Workshop Management",
+                Font = new Font("Segoe UI", 9),
+                ForeColor = Color.FromArgb(180, 200, 230),
+                TextAlign = ContentAlignment.BottomCenter,
+                Dock = DockStyle.Bottom,
+                Height = 22
             };
-            btnNewInvoice.Click += BtnNewInvoice_Click;
+            pnlHeader.Controls.AddRange(new Control[] { lblTitle, lblSub });
 
-            var btnInventory = new Button
+            // ── Buttons ────────────────────────────────────────────────────────
+            var btnInvoices = MakeNavButton("🧾  Invoices",
+                "Create, view and print invoices",
+                Color.FromArgb(33, 97, 140));
+            btnInvoices.Click += (s, e) => OpenInvoices();
+
+            var btnInventory = MakeNavButton("📦  Spare Parts",
+                "Manage stock and receive new parts",
+                Color.FromArgb(39, 120, 75));
+            btnInventory.Click += (s, e) => OpenInventory();
+
+            var btnHistory = MakeNavButton("🔍  Service History",
+                "Search past invoices by plate or customer",
+                Color.FromArgb(130, 70, 160));
+            btnHistory.Click += (s, e) => OpenServiceHistory();
+
+            var pnlButtons = new Panel
             {
-                Text = "Spare Part Inventory",
-                Size = new Size(200, 50),
-                Location = new Point(90, 165),
-                Font = new Font("Segoe UI", 11)
+                Dock = DockStyle.Fill,
+                Padding = new Padding(30, 20, 30, 20)
             };
-            btnInventory.Click += BtnInventory_Click;
 
-            this.Controls.AddRange(new Control[] { lblTitle, btnNewInvoice, btnInventory });
+            btnInvoices.Location = new Point(30, 20);
+            btnInventory.Location = new Point(30, 95);
+            btnHistory.Location = new Point(30, 170);
+
+            pnlButtons.Controls.AddRange(new Control[] { btnInvoices, btnInventory, btnHistory });
+
+            Controls.AddRange(new Control[] { pnlButtons, pnlHeader });
         }
 
-        private void BtnNewInvoice_Click(object sender, EventArgs e)
+        // ── Navigation ─────────────────────────────────────────────────────────
+
+        private void OpenInvoices()
         {
-            // Opens vehicle search first — plate lookup is always step 1
-            var searchForm = new VehicleSearchForm(
-                _vehicleRepo, _vehicleModelRepo, _customerRepo);
-
-            if (searchForm.ShowDialog() == DialogResult.OK)
-            {
-                // VehicleSearchForm sets these on OK
-                //var invoiceForm = new InvoiceForm(
-                //    searchForm.SelectedVehicle,
-                //    searchForm.SelectedCustomer,
-                //    _sparePartRepo,
-                //    _invoiceService,
-                //    _pdfGenerator);
-                var invoiceForm = new InvoiceForm(
-                    _invoiceService,
-                    _vehicleRepo,
-                    _customerRepo,
-                    _sparePartRepo,
-                    _laborRepo,           // you need to add this to MainForm
-                    _vehicleModelRepo,
-                    _manufacturerRepo,
-                    _pdfGenerator);
-
-                invoiceForm.ShowDialog();
-            }
+            // Open InvoiceForm directly — no VehicleSearchForm step needed.
+            // The admin types the plate inside InvoiceForm itself.
+            var form = new InvoiceForm(
+                _invoiceService,
+                _vehicleRepo,
+                _customerRepo,
+                _sparePartRepo,
+                _laborRepo,
+                _vehicleModelRepo,
+                _manufacturerRepo,
+                _pdfGenerator);
+            form.ShowDialog(this);
         }
 
-        private void BtnInventory_Click(object sender, EventArgs e)
+        private void OpenInventory()
         {
             using (var form = new SparePartForm(_sparePartRepo, _inventoryService))
-            {
                 form.ShowDialog(this);
-            }
+        }
 
+        private void OpenServiceHistory()
+        {
+            var form = new ServiceHistoryForm(
+                _invoiceService,
+                _vehicleRepo,
+                _customerRepo,
+                _invoiceRepo,
+                _pdfGenerator);
+            form.ShowDialog(this);
+        }
+
+        // ── Helper ─────────────────────────────────────────────────────────────
+
+        private static Button MakeNavButton(string title, string subtitle, Color color)
+        {
+            var btn = new Button
+            {
+                Size = new Size(330, 65),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = color,
+                ForeColor = Color.White,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(14, 0, 0, 0),
+                Cursor = Cursors.Hand,
+                Text = title + "\n" + subtitle
+            };
+            btn.FlatAppearance.BorderSize = 0;
+            btn.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            return btn;
         }
 
         private void InitializeComponent()
         {
-            this.SuspendLayout();
-            // 
-            // MainForm
-            // 
-            this.ClientSize = new System.Drawing.Size(282, 253);
-            this.Name = "MainForm";
-            this.Load += new System.EventHandler(this.MainForm_Load);
-            this.ResumeLayout(false);
-
+            SuspendLayout();
+            ClientSize = new Size(420, 380);
+            Name = "MainForm";
+            Load += new EventHandler(MainForm_Load);
+            ResumeLayout(false);
         }
 
-        private void MainForm_Load(object sender, System.EventArgs e)
-        {
+        private void MainForm_Load(object sender, EventArgs e) { }
 
-        }
     }
 }

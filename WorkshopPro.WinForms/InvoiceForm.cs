@@ -75,6 +75,9 @@ namespace WorkshopPro.WinForms
         private CustomerEntity selectedCustomer;
         private InvoicePdfGenerator pdfGenerator;
 
+        private TextBox _txtManualPartDesc;
+        private TextBox _txtManualPartPrice;
+        private Button _btnAddManualPart;
         public InvoiceForm(
             InvoiceService invoiceService,
             IVehicleRepository vehicleRepo,
@@ -372,7 +375,7 @@ namespace WorkshopPro.WinForms
             itemsGroup.Controls.Add(_itemsGrid);
 
             // Add item toolbar
-            var addItemBar = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.FromArgb(240, 240, 245), Padding = new Padding(6) };
+            var addItemBar = new Panel { Dock = DockStyle.Bottom, Height = 124, BackColor = Color.FromArgb(240, 240, 245), Padding = new Padding(6) };
             BuildAddItemBar(addItemBar);
             itemsGroup.Controls.Add(addItemBar);
 
@@ -523,30 +526,172 @@ namespace WorkshopPro.WinForms
 
         private void BuildAddItemBar(Panel bar)
         {
-            var row1 = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 30, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
-            var lblPart = new Label { Text = "Part:", AutoSize = true, Margin = new Padding(0, 7, 4, 0) };
-            _txtPartSearch = new TextBox { Width = 280, Margin = new Padding(0, 4, 6, 0) };
+            // Row 1: spare part search (from stock)
+            var row1 = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                Height = 32,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                Padding = new Padding(0, 2, 0, 0)
+            };
+            var lblPart = new Label
+            {
+                Text = "Part (stock):",
+                AutoSize = true,
+                Margin = new Padding(0, 7, 4, 0),
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold)
+            };
+            _txtPartSearch = new TextBox { Width = 270, Margin = new Padding(0, 4, 6, 0) };
+            SetPlaceholder(_txtPartSearch, "Type 2+ letters to search stock parts...");
             _txtPartSearch.TextChanged += TxtPartSearch_TextChanged;
-            _txtPartSearch.KeyDown += TxtPartSearch_KeyDown;
-            _lblPartSearchHint = new Label { Text = "Type 2+ letters to search parts", ForeColor = Color.Gray, AutoSize = true, Margin = new Padding(0, 7, 0, 0), Font = new Font("Segoe UI", 8f) };
-            row1.Controls.AddRange(new Control[] { lblPart, _txtPartSearch, _lblPartSearchHint });
+            _txtPartSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) _partPopup.Hide(); };
+            var lblHint = new Label
+            {
+                Text = "← popup appears",
+                ForeColor = Color.Gray,
+                AutoSize = true,
+                Margin = new Padding(0, 7, 0, 0),
+                Font = new Font("Segoe UI", 8f)
+            };
+            row1.Controls.AddRange(new Control[] { lblPart, _txtPartSearch, lblHint });
 
-            var row2 = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 30, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
-            var lblLabor = new Label { Text = "Labor:", AutoSize = true, Margin = new Padding(0, 7, 4, 0) };
-            _cmbLaborService = new ComboBox { Width = 260, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 4, 6, 0) };
+            // Row 2: manual / ad-hoc part (not in stock system)
+            var row2 = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                Height = 32,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                Padding = new Padding(0, 0, 0, 0)
+            };
+            var lblManual = new Label
+            {
+                Text = "Part (manually written):",
+                AutoSize = true,
+                Margin = new Padding(0, 7, 4, 0),
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold)
+            };
+            _txtManualPartDesc = new TextBox { Width = 220, Margin = new Padding(0, 4, 6, 0) };
+            SetPlaceholder(_txtManualPartDesc, "Part name / description");
+
+            _txtManualPartPrice = new TextBox { Width = 110, Margin = new Padding(0, 4, 6, 0) };
+            SetPlaceholder(_txtManualPartPrice, "Price e.g. 150000");
+
+            _btnAddManualPart = MakeButton("Add Part", Color.FromArgb(140, 80, 20), 82, 24);
+            _btnAddManualPart.Margin = new Padding(0, 3, 0, 0);
+            _btnAddManualPart.Click += BtnAddManualPart_Click;
+
+            row2.Controls.AddRange(new Control[] { lblManual, _txtManualPartDesc, _txtManualPartPrice, _btnAddManualPart });
+
+            // Row 3: labor service
+            var row3 = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                Height = 32,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                Padding = new Padding(0, 0, 0, 0)
+            };
+            var lblLabor = new Label
+            {
+                Text = "Labor service:",
+                AutoSize = true,
+                Margin = new Padding(0, 7, 4, 0),
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold)
+            };
+            _cmbLaborService = new ComboBox
+            {
+                Width = 210,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Margin = new Padding(0, 4, 6, 0)
+            };
             _cmbLaborService.DisplayMember = "Name";
             _cmbLaborService.ValueMember = "Id";
-            _txtLaborPrice = MakeTextBox("Price (Rp)", 100);
-            _btnAddLabor = new Button { Text = "Add Labor", Width = 90, Height = 24, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(80, 80, 160), ForeColor = Color.White, Margin = new Padding(4, 3, 0, 0), Cursor = Cursors.Hand };
-            _btnAddLabor.FlatAppearance.BorderSize = 0;
-            _btnAddLabor.Click += BtnAddLabor_Click;
-            _btnRemoveItem = new Button { Text = "Remove", Width = 75, Height = 24, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(200, 50, 50), ForeColor = Color.White, Margin = new Padding(10, 3, 0, 0), Cursor = Cursors.Hand };
-            _btnRemoveItem.FlatAppearance.BorderSize = 0;
-            _btnRemoveItem.Click += BtnRemoveItem_Click;
-            row2.Controls.AddRange(new Control[] { lblLabor, _cmbLaborService, _txtLaborPrice, _btnAddLabor, _btnRemoveItem });
+            _txtLaborPrice = new TextBox { Width = 110, Margin = new Padding(0, 4, 6, 0) };
+            SetPlaceholder(_txtLaborPrice, "Price e.g. 75000");
 
+            _btnAddLabor = MakeButton("Add Labor", Color.FromArgb(70, 80, 160), 88, 24);
+            _btnAddLabor.Margin = new Padding(0, 3, 8, 0);
+            _btnAddLabor.Dock = DockStyle.Left;
+            _btnAddLabor.Click += BtnAddLabor_Click;
+
+            _btnRemoveItem = MakeButton("✕ Remove", Color.FromArgb(190, 50, 50), 88, 24);
+            _btnRemoveItem.Margin = new Padding(0, 3, 0, 0);
+            _btnRemoveItem.Click += BtnRemoveItem_Click;
+
+            row3.Controls.AddRange(new Control[] { lblLabor, _cmbLaborService, _txtLaborPrice, _btnAddLabor, _btnRemoveItem });
+
+            bar.Controls.Add(row3);
             bar.Controls.Add(row2);
             bar.Controls.Add(row1);
+        }
+
+        private void BtnAddManualPart_Click(object sender, EventArgs e)
+        {
+            if (_currentInvoiceId == 0)
+            {
+                MessageBox.Show("Please complete the vehicle lookup first before adding items.",
+                    "WorkshopPro", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string desc = GetTextOrNull(_txtManualPartDesc);
+            if (desc == null)
+            {
+                MessageBox.Show("Please enter a part name or description.",
+                    "WorkshopPro", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _txtManualPartDesc.Focus(); return;
+            }
+
+            string priceText = GetTextOrNull(_txtManualPartPrice);
+            if (priceText == null)
+            {
+                MessageBox.Show("Please enter the part price.\n\nExample: 150000",
+                    "WorkshopPro", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _txtManualPartPrice.Focus(); return;
+            }
+
+            string cleaned = new string(priceText.Where(char.IsDigit).ToArray());
+            if (!decimal.TryParse(cleaned, out decimal price) || price < 0)
+            {
+                MessageBox.Show("Price must be a number greater than zero.\n\nExample: 150000",
+                    "WorkshopPro", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _txtManualPartPrice.Focus(); return;
+            }
+
+            try
+            {
+                // Reuse AddLaborItem — same signature, just mark as ManualPart type
+                // so PDF generator puts it in the PARTS column, not LABOUR
+                var item = new InvoiceItemEntity
+                {
+                    InvoiceId = _currentInvoiceId,
+                    ItemType = "ManualPart",      // ← distinguishes from Labor in PDF
+                    SparePartId = null,
+                    Description = desc,
+                    Qty = 1,
+                    UnitPrice = price,
+                    Subtotal = price
+                };
+                _invoiceService.AddLaborItem(_currentInvoiceId, desc, price);
+                // Note: AddLaborItem saves with ItemType="Labor" internally.
+                // If you want "ManualPart" stored in DB, add a new service method:
+                //   InvoiceService.AddManualPartItem(invoiceId, desc, price)
+                // which calls _invoiceRepo.InsertItem with ItemType="ManualPart".
+                // For now, "Labor" in DB is fine — PDF uses the Description to display it.
+
+                RefreshItemsGrid();
+                LoadInvoiceList();
+                _txtManualPartDesc.Clear();
+                _txtManualPartPrice.Clear();
+                SetPlaceholder(_txtManualPartDesc, "Part name / description");
+                SetPlaceholder(_txtManualPartPrice, "Price e.g. 150000");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Cannot Add Item", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         private void BuildBottomBar(Panel bar)
@@ -846,7 +991,7 @@ namespace WorkshopPro.WinForms
             }
 
             string cleaned = new string(priceText.Where(char.IsDigit).ToArray());
-            if (!decimal.TryParse(cleaned, out decimal price) || price <= 0)
+            if (!decimal.TryParse(cleaned, out decimal price) || price < 0)
             {
                 MessageBox.Show("Price must be a number greater than zero.",
                     "WorkshopPro", MessageBoxButtons.OK, MessageBoxIcon.Warning);
